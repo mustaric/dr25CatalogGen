@@ -1,0 +1,481 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Mar  9 15:38:04 2016
+
+@author: smullall
+
+Functions useful for reading in Robovetter results.
+getRvData
+readFullTceInfo
+createRVResults
+etc.
+"""
+
+import pandas as p
+import numpy as np
+
+#Code to Read Jeff's file
+#
+
+def readRVDispFile(rvfile):
+    """
+    Read in the RV output txt file
+    return pandas dataframe of the file
+    """
+       
+    colnames=('tce','score','disp','N','S','C','E','flags')
+    data=p.read_csv(rvfile,sep=' ',skiprows=2,header=None,names=colnames,index_col='tce')
+       
+    return data
+      
+      
+def readTceInfo(tcefile):
+    """
+    Read Jeff's Roboveter TCE file
+    return pandas dataframe
+    """
+    
+    colnames=('tce','kic','pn','period','epoch','mes','depth','duration','rplanet','rstar','tstar','logg','a','rprstar','arstar','snr','srad')
+    data=p.read_csv(tcefile,skiprows=3,names=colnames,delim_whitespace=True,index_col='tce')
+    
+    return data
+
+def readFullTceInfo(tcefile):
+    """
+    Read Jeff's TCEs-Full.txt file
+    return pandas dataframe
+    """
+    header = open(tcefile,'r').readlines()[0].lstrip('        #').strip().split(None)
+    data= p.read_csv(tcefile,skiprows=2,names=header,delim_whitespace=True,index_col='TCE')
+    
+    return data
+    
+
+def readFederation(fedfile):
+    """
+    Read in Chris Federation file
+    If things do not federate, don't create a TCE
+    """
+    colnames=('koi','kic','pn','qFlag','qualnum','pratioFlag','pratio','fed')
+    
+    adata=p.read_csv(fedfile,names=colnames,delim_whitespace=True,index_col='koi',comment='#')
+    federated=adata['fed']==1
+    data=adata[federated]
+
+    tces=map(tceformat,data['kic'].as_matrix(),data['pn'].as_matrix())
+    kois=map(koiformat,data.index)
+
+    data.insert(0,'tce',tces)
+    data.insert(1,'koi',kois)
+    short=data.drop(['qualnum','pratioFlag','kic','pn','qFlag'],axis=1)
+    
+    new=short.set_index('tce')
+
+    return(new)    
+
+
+def readFederationInj(fedfile):
+    """
+    Read in Chris Federation file for Injection
+    If things do not federate, don't create a TCE
+    """
+    colnames=('koi','kic','pn','qFlag','qualnum','pratioFlag','pratio','fed')
+    
+    adata=p.read_csv(fedfile,names=colnames,delim_whitespace=True,index_col='koi',comment='#')
+    federated=adata['fed']==1
+    data=adata[federated]
+
+    tces=map(tceformat,data['kic'].as_matrix(),data['pn'].as_matrix())
+    kois=map(koiformat,data.index)
+
+    data.insert(0,'tce',tces)
+    data.insert(1,'koi',kois)
+    short=data.drop(['qualnum','pratioFlag','koi','qFlag'],axis=1)
+    
+    new=short.set_index('tce')
+
+    return(new) 
+
+def readcumulativeTable(cumfile):
+    """
+    Read in Fergal's Cumulative Table
+    """
+    colnames=('kepid','kicCum','pn','date','auth','fitFile','centroidFile','dr24disp','dr24flag','dr24comment')    
+    data=p.read_csv(cumfile,names=colnames,sep='|',index_col='kepid',comment='#')
+    
+    newdata=data.drop(['date','auth','fitFile','centroidFile'],axis=1)
+    
+    a=p.isnull(newdata['dr24disp'].as_matrix())
+    
+    newdata['dr24disp'][a]='ND'
+    
+    return newdata
+
+def readcumulativeTable2(cumfile):
+    """
+    Read in Fergal's Cumulative Table
+    """
+    colnames=('koiName','kepid','pn','date','auth','fitFile','centroidFile','dr25disp','flag','dr25comment','dr25score')    
+    data=p.read_csv(cumfile,names=colnames,sep='|',index_col='koiName',comment='#')
+    
+    return data
+
+def readNexsciCumulative(cumfile):
+    """
+    """
+    data=p.read_csv(cumfile,sep=',',comment='#',index_col='rowid')
+    
+    return data
+
+def readConfirmed(confFile):
+    """
+    Read in the confirmed Table from NexSci
+    """
+    confData=p.read_csv(confFile,sep=',',index_col='kepoi_name',comment='#')
+    
+    return confData
+    
+def createAllResults(rvfile,tcefile,fedfile,cumfile):
+    """
+    combine the TCE,RV, federation and cumulative into one dataframe
+    fedfile can be set to "" if does not exist
+    """
+    
+    rvdata=readRVDispFile(rvfile)
+    tcedata=readTceInfo(tcefile)
+    feddata=readFederation(fedfile)
+    cumdata=readcumulativeTable(cumfile)
+        
+    #result=p.concat([rvdata,tcedata],axis=1,join='outer')
+    result=p.merge(rvdata,tcedata,how="left",left_index=True,right_index=True,suffixes=("","tce"))
+    m1=result.merge(feddata,left_index=True,right_index=True,how='left')
+    m2=m1.merge(cumdata,left_on='koi',right_index=True,how='left') 
+    indexname=m2.index.name
+    if p.isnull(indexname):
+        m2.index.rename('tce',inplace=True)
+        indexname=m2.index.name
+    m3 = m2.reset_index().drop_duplicates(subset=indexname, keep='last').set_index(indexname)
+    m3['iskoi']=m3['koi'].notnull()
+    #m3=m2.drop_duplicates()
+
+    return m3
+
+    
+def createRVResults(rvfile,tcefile1):
+    """
+    combine rv results and TCE files to get the information I need to metric reporting
+    But only return those things that are in rvfile...tcefile1 is a superset.
+    """
+    rvdata=readRVDispFile(rvfile)
+    tcedata=readTceInfo(tcefile1)
+    #tcedata2=readFullTceInfo(tcefile2)
+    #needlogg=tcedata2['log10SurfaceGravity.value']
+    
+    #result=p.concat([rvdata,tcedata],axis=1,join='inner')
+    result=p.merge(rvdata,tcedata,how="left",left_index=True,right_index=True,suffixes=("","tce"))
+
+    #result2=p.concat([result,needlogg],axis=1,join='outer')
+    #result2.rename(columns={'log10SurfaceGravity.value':'logg'},inplace=True)
+    
+    return result
+    
+#def createRVStellarResult(rvfile,tcefile,stellarfile):
+#    """
+#    add in the cdpp values from the stellar csv file to the robovetter results
+#    """
+#    rvdata=createRVResults(rvfile,tcefile)
+#    info=p.DataFrame(index=rvdata.index.copy())
+#    
+#    stardata=p.read_csv(stellarfile,sep=',',index_col='kepid',comment='#')
+#    
+#    for tce in rvdata.index:
+#        kepid=int(tce[0:9])
+#        toadd=stardata.loc[kepid]
+#        
+         
+def readStellarInternal(stellarFile):
+    """
+    Read in the Stellar file and create a data frame indexed by the kic number
+    """
+
+    steldata=p.read_csv(stellarFile,sep=',',index_col='kepid',comment='#')   
+    
+    return steldata
+
+
+def addTceToStellar(steldata,rvdata,colname):
+    """
+    Take a robovetter data set and mark in the stellar data frame 
+    if that robovetter contains. The column will contain the number of TCEs found on that star.
+    """
+    
+    #numtces=p.DataFrame(index=steldata.index,data={colname:zerocol})
+    rvkics=rvdata['kic'].as_matrix()
+    zerocol=np.zeros(len(rvkics))
+    
+    for i,kic in enumerate(rvdata['kic']):
+        
+        zerocol[i] = sum(rvdata['kic']==kic)
+       # print rvkics[i], zerocol[i]
+        
+    numtces=p.DataFrame(data={'kepid':rvkics, colname:zerocol})
+    numtces.drop_duplicates(subset='kepid',keep='first',inplace=True)
+    numtces.set_index('kepid',inplace=True)
+
+    newsteldata=steldata.merge(numtces,left_index=True,right_index=True,how='left')    
+    
+    return newsteldata
+    
+   
+def getRvData(topdir,rvfile,tcefile):
+    """
+    Return a pandas dataframe of the robovetter results.
+    topdir is through the OPS or INJ, but does not include DATA
+    """    
+    rvfile='%s/%s' % (topdir,rvfile)
+    tcefile='%s/%s' % (topdir,tcefile)
+
+    rvdata=createRVResults(rvfile,tcefile)
+
+    return rvdata
+  
+
+def tceformat(kic,pn):
+    """
+    info is a tuple of two values that contain kic and pn
+    """
+    
+    tce="%09u-%02u" % (int(kic),int(pn))
+    
+    return tce
+
+def koiformat(koi):
+    
+    koi="K%08.2f" % koi
+    return koi
+    
+def readFile(filename):
+
+    data = np.loadtxt(filename, dtype=str)
+    fp = open(filename)
+    hdr = fp.readline()
+    hdr = fp.readline()
+    fp.close()
+
+
+    hdr = hdr[1:].split()
+    tces=data[:,0]
+    df = p.DataFrame(data[:,1:].astype(float), columns=hdr[1:],index=tces)
+
+    return df
+
+def loadRVInOut(revision,type="OPS",tcedata="DATA",topdir="/home/smullall/Kepler/RoboVetter/DR25/stats/Versions/"):
+   """
+   Load the RV Inputs from a particular revision of the robovetter
+   Return the RV dataframes for OPS,Inj,Inv
+   Options for type are OPS, INV INJ-PlanetOn and INJ-PlanetOff
+   change tcedata="DATA" to "DATA-SUP" for INJ and OPS if you want Supplemental fits.
+   """
+   rvin=topdir + "r" + str(revision) + "/RoboVetter-Input-" + type + ".txt"
+   rvout=topdir + "r" + str(revision) + "/RoboVetterOut-" + type + ".txt"
+   tcefile="/soc/nfs/so-nfs/DR25/" + type[:3] + "/" + tcedata+"/TCEs.txt"
+   #tcefile="/Users/sthompson/kepler/DR25/Robovetter/Versions/"+type[:3]+"/TCEs.txt"
+   dfin=readFile(rvin)
+   dfout=readRVDispFile(rvout)
+   
+   tworv=p.merge(dfout,dfin,how="left",left_index=True,right_index=True,suffixes=("","in"))
+   
+   tcedf=readTceInfo(tcefile)
+
+   allrv=p.merge(tworv,tcedf,how="left",left_index=True,right_index=True,suffixes=("","tce"))
+   
+   return allrv,dfin,dfout,tcedf
+
+
+def loadDR24Catalog():
+    """
+    Create the robovetter outputs, dispoitions for the DR24 catalog
+    """
+    
+    dr24tcefile="/soc/nfs/so-nfs/DR24/Q17/DATA/Q1Q17TCEs.txt"
+    colnames=('tce','kic','pn','period','epoch','mes','depth','duration','rplanet','rstar','tstar','a','rprstar','arstar','snr','teq','secmees','secphase','posmes','posphase','mesmad')
+    dr24data=p.read_csv(dr24tcefile,skiprows=3,names=colnames,delim_whitespace=True,index_col='tce')
+    
+    return dr24data
+    
+def loadByEyeVet(revision,infile="/soc/nfs/so-nfs/DR25/other/hand-vetted.txt"):
+    """
+    This file has TCE and PC vs FP in it.  We can use to get an effectiveness.
+    Merge with the robovetter input output data frame. 
+    and return a DF with only those TCEs.
+    """    
+    rvinout,dfin,dfout,tcedf=loadRVInOut(revision,type="OPS")
+    
+    colnames=('tce','dispeye','flagseye')
+    dataeye=p.read_csv(infile,comment='#',index_col="tce",names=colnames)
+    
+    pcs=dataeye['dispeye']=='PC'
+    fps=dataeye['dispeye']=='FP'
+    
+    pceye=dataeye[pcs]
+    fpeye=dataeye[fps]
+    
+    byEyePcs=p.merge(pceye,rvinout,how='left',left_index=True,right_index=True)
+    byEyeFps=p.merge(fpeye,rvinout,how='left',left_index=True,right_index=True)    
+    
+    return byEyePcs,byEyeFps
+    
+def loadByEyeVetRvin(rvfile="/soc/nfs/so-nfs/DR25/OPS/RoboVet/RoboVetterOut-OPS.txt",tceinfile="/soc/nfs/so-nfs/DR25/OPS/DATA/TCEs.txt",eyefile="/soc/nfs/so-nfs/DR25/other/hand-vetted.txt"):
+    """
+    This file has TCE and PC vs FP in it.  We can use to get an effectiveness.
+    Merge with the robovetter input output data frame. 
+    and return a DF with only those TCEs.
+    """    
+    tcedf=createRVResults(rvfile,tceinfile)
+    
+    colnames=('tce','dispeye','flagseye')
+    dataeye=p.read_csv(eyefile,comment='#',index_col="tce",names=colnames)
+    
+    pcs=dataeye['dispeye']=='PC'
+    fps=dataeye['dispeye']=='FP'
+    
+    pceye=dataeye[pcs]
+    fpeye=dataeye[fps]
+    
+    byEyePcs=p.merge(pceye,tcedf,how='left',left_index=True,right_index=True)
+    byEyeFps=p.merge(fpeye,tcedf,how='left',left_index=True,right_index=True)    
+    
+    return byEyePcs,byEyeFps
+
+def combineConfirmed(rvdata,confdata,feddata):
+    """
+    Combine and return ops data that federate with the confirmed planet list.
+    """
+    #Merge using the KOIs. Leave behind only the KOIs and data for all.
+    #Start by merging cdata and feddata.
+    
+    clist=confdata.index
+    isConfirmed=np.zeros(len(feddata))
+    for i,koi in enumerate(feddata['koi']):
+        
+        if koi in clist:
+            isConfirmed[i]=1
+
+    feddata['confirmed']=isConfirmed
+    alldata=rvdata.merge(feddata,left_index=True,right_index=True,how='left')
+    
+    isconf=alldata['confirmed']==1
+    
+    data=alldata[isconf]
+    
+    return data,isconf
+
+def combineFPWG(rvdata,fpdata,feddata):
+    """
+    CombineFPWG data with ops list
+    """
+    
+    fplist=fpdata.index
+    isFP=np.zeros(len(feddata))
+    for i,koi in enumerate(feddata['koi']):
+        if koi in fplist:
+            isFP[i]=1
+
+    feddata['fp']=isFP
+    newdata=rvdata.merge(feddata,left_index=True,right_index=True,how='left')
+    
+    isfp=newdata['fp']==1
+    
+    data=newdata[isfp]
+    
+    return data,isfp
+
+def passes(data,s=[0.0,1.0]):
+    """
+    Use disposition and scores to determine which ones pass.
+    Returns true false array
+    """
+    
+    passed= ((data['disp'] == 'PC') & (data['score']>=s[0])) | \
+            ((data['disp']=='FP') & (data['score']>=s[1]))  
+    return passed
+    
+
+def getNewCandidates(data,s=[0.0,1.0]):
+    """
+    return a data frame of just those Candidates that
+    are new candidate compared to the cumulative table in 2016
+    i.e. New KOIs and previously FPs.
+    Return KOI numbers into the dataframe for those that do have KOI numbers.
+    """
+    cumfile='/soc/nfs/so-nfs/DR25/other/nexsciCumulative.csv'
+    cumdata=readNexsciCumulative(cumfile)
+    
+    svnfile='/home/smullall/Kepler/cumulativeTable/dr25/dr25-status.csv'
+    svndata=readcumulativeTable2(svnfile)
+    
+    tces=map(tceformat,svndata['kepid'].as_matrix(),svndata['pn'].as_matrix())
+    svndata['tce']=tces
+    svndata['dr25koiName']=svndata.index
+    
+    #Use data as the source. merge to it all the KOI names from svndata.
+    #Then merge in all the dispositions from cumdata
+    
+    data=p.merge(data,svndata,how='left',left_index=True,right_on='tce')
+    
+    data=p.merge(data,cumdata,how='left',left_on='dr25koiName',right_on='kepoi_name')
+    data.set_index('tce',drop=False,inplace=True)
+    data['isdr25koi']=~data.dr25koiName.isnull()
+    data['isdr24koi']=~data.koi_pdisposition.isnull()
+    
+    pcs=passes(data,s=s)
+    pcdata=data[pcs]
+    
+    return data
+    
+def trimINVData(invdata,rtype):
+    """
+    Trim the inverted data of the known astrophysical events
+    """
+    
+    if rtype == "INV":
+        #keepfile="/soc/nfs/so-nfs/DR25/INV/DATA/invTCEClean-20161114.csv"
+        keepfile="/soc/nfs/so-nfs/DR25/INV/DATA/invTCEClean-900day-7mes-Mar2017.csv"
+    elif rtype == "SS1":
+        #keepfile="/soc/nfs/so-nfs/DR25/SS1/DATA/ss1TCEClean-900day-7mes-Dec2016.csv"
+        keepfile="/soc/nfs/so-nfs/DR25/SS1/DATA/ss1TCEClean-900day-7mes-Mar2017.csv" 
+    keepinv=p.read_csv(keepfile,header=0,index_col='tce',comment='#')
+    newdata=p.merge(invdata,keepinv,how="left",left_index=True,right_index=True)
+    returnData=newdata[newdata['keep']]    
+    
+    return returnData
+   
+    
+def getAllData(id,rtype='ALL',tcedata="DATA"):
+    """
+    Returns ops(with dr24 koi and dr25 kois), injection, and inv/ss1
+    """
+    rops,a,b,c=loadRVInOut(id,tcedata=tcedata)
+    #banned=p.read_csv('/home/smullall/Kepler/RoboVetter/DR25/svn/robovet/Banned-TCEs-Final.txt',\
+    #  comment='#',usecols=[0],index_col=0)
+    #rops.banned=np.zeros(len(rops))
+    #rops.loc[banned.index].banned = 1  #Indicate which are banned
+    ops=getNewCandidates(rops)
+    
+    
+    inj,a,b,c=loadRVInOut(id,type="INJ-PlanetOn",tcedata=tcedata)
+
+    if rtype == 'ALL':
+        invdata,a,b,c=loadRVInOut(id,type='INV')
+        invrvdata=trimINVData(invdata,"INV")
+        ss1data,a,b,c=loadRVInOut(id,type='SS1')
+        ss1rvdata=trimINVData(ss1data,"SS1")
+        newinvdata=p.concat((invrvdata,ss1rvdata),ignore_index=True)
+        
+    else:
+        invdata,a,b,c=loadRVInOut(id,type=rtype)
+        newinvdata=trimINVData(invdata,rtype)
+            
+    inv=newinvdata
+
+    return ops,inj,inv
