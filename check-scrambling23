@@ -1,0 +1,114 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Sep  1 12:30:32 2017
+Script to check the new SCR2 and SCR3 input and output files.
+
+@author: sthomp
+"""
+
+import publicIO as io
+import pandas as p
+import numpy as np
+import plotRobovetter as prv
+import createRVPerfMetrics as crpm
+import matplotlib.pyplot as plt
+import createRVPerfMetricsPlots as pmp
+import publicPaperPlots as ppp
+
+#dr25=io.DR25_IO(ddir="/Users/sthompson/kepler/DR25/public0512/KeplerPublicProducts/")
+#For my linux box.
+#dr25=io.DR25_IO(ddir="/home/smullall/Kepler/RoboVetter/DR25/stats/Versions/FinalAnalysis/publicData/")
+
+dr25=io.DR25_IO(ddir="/Users/sthomp/Kepler/DR25/publicData0810/")
+
+
+koi=dr25.loadKOITable()
+ops=dr25.loadOps()
+inv=dr25.loadInv()
+scr1=dr25.loadScr()
+scr2=dr25.loadScr2()
+scr3=dr25.loadScr3()
+fas=dr25.loadBothFA()
+inj=dr25.loadInj()
+
+ops['mes']=ops.MES
+fas['mes']=fas.MES
+inj['mes']=inj.MES
+scr2['mes']=scr2.MES
+scr3['mes']=scr3.MES
+
+#%%
+#Get Reliability for different boxes.
+#
+metric1='period'
+range1=[200,500]
+metric2='mes'
+range2=[7,10]
+#Switch what fas means on this line.
+
+scr=scr1
+wops=ppp.inBox(ops,metric1,range1,metric2,range2)
+wfas=ppp.inBox(fas,metric1,range1,metric2,range2)
+winv=ppp.inBox(inv,metric1,range1,metric2,range2)
+wscr=ppp.inBox(scr,metric1,range1,metric2,range2)
+
+Rfas=pmp.estimateReliability(fas[wfas],ops[wops])
+Rinv=pmp.estimateReliability(inv[winv],ops[wops])
+Rscr=pmp.estimateReliability(scr[wscr],ops[wops])
+print(Rfas)
+print(Rinv)
+print(Rscr)
+
+#%%
+#Randomly select half of the false alarm sets 100 times.
+npts=100
+rels=np.zeros(npts)
+for i in np.arange(0,npts,1):
+    wrand=(np.round(np.random.rand(len(fas)))==1)
+    newfas=fas[wrand]
+    wfas=ppp.inBox(newfas,metric1,range1,metric2,range2)
+    R=pmp.estimateReliability(newfas[wfas],ops[wops])
+    rels[i]=R[0]
+
+print np.mean(rels)
+print np.std(rels)   
+
+#%%
+#Plot period distributions of the simulted TCEs data sets.
+
+b=np.linspace(-0.301,2.83,180); #Bins
+plt.figure(figsize=(8.5,10))
+
+plt.subplot(311)
+plt.hist(np.log10(inv.period),histtype='step',bins=b,label='invTCE',color='red',lw=2.4,zorder=2)
+plt.hist(np.log10(ops.period),histtype='step',bins=b,label='DR25 obsTCE',color='black',lw=1.8,zorder=1)
+plt.legend(loc='upper left',fontsize=12)
+plt.xlim([-.35,2.9])
+lab=np.array([0.5,1.0,3.0,10.0,30,100.0, 372.0])
+locat=np.log10(lab)
+plt.xticks(locat,lab,fontsize=13)
+#plt.xlabel('(Period (days)')
+plt.ylabel('Counts',fontsize=14)
+
+scr=scr2
+plt.subplot(312)
+plt.hist(np.log10(scr.period),histtype='step',bins=b,label='scrTCE',color='green',lw=2.4,zorder=2)
+plt.hist(np.log10(ops.period),histtype='step',bins=b,label='DR25 obsTCE',color='black',lw=1.8,zorder=1)
+plt.legend(loc='upper left',fontsize=12)
+plt.xlim([-.35,2.9])
+plt.ylabel('Counts',fontsize=14)
+#plt.xlabel('(Period (days)')
+
+plt.xticks(locat,lab,fontsize=13)
+
+plt.subplot(313)
+
+plt.hist(np.log10(inj.period),histtype='step',bins=b,label='injTCE',color='blue',lw=2.4)
+plt.xlabel('Period (days)',fontsize=14)
+plt.ylabel('Counts',fontsize=14)
+plt.legend(loc='upper left',fontsize=12)
+plt.xlim([-.35,2.9])
+plt.xticks(locat,lab,fontsize=13)
+
+

@@ -23,7 +23,7 @@ class DR25_IO(object):
     def __init__(self,ddir='/Users/sthompson/kepler/DR25/publicData/'):
         self.ddir=ddir
         self.dr25koiname='other/q1_q17_dr25_koi.tbl'
-        self.datatypes=['obs','inv','scr1','inj1']  #observed, inverted, scrambled, injected
+        self.datatypes=['obs','inv','scr1','inj1','scr2','scr3']  #observed, inverted, scrambled, injected, scr2,scr3
         self.rvroot='RoboVet-Public/kplr_dr25_'
         self.rvinroot='_robovetter_input.txt'
         self.rvoutroot='_robovetter_output.txt'
@@ -33,6 +33,7 @@ class DR25_IO(object):
         self.cumkoiname='other/cumulative_koi.tbl'
         self.prevkois='other/q1q17-status.csv'
         self.certfp='other/certfp.tbl'
+        self.flagfile='other/minorflags.txt'
 
     def loadKOITable(self):
 
@@ -90,7 +91,7 @@ class DR25_IO(object):
         koidf['Rp'] = koidf.koi_prad
         koidf['New'] = np.zeros(len(koidf),dtype=bool)
         #Set a column called new for the new KOIs
-        newones=koidf.index.isin(newlist)
+        #newones=koidf.index.isin(newlist)
         for v in newlist:
             koidf.set_value(v,'New',True)        
     
@@ -178,8 +179,7 @@ class DR25_IO(object):
     
     def loadInv(self,clean=True):
         """
-        Load and merge the SS1 and INV sets and then combine them into
-        one dataframe
+        Load INV set
         """
         inv=self.loadInOut(datatype=self.datatypes[1],clean=clean)
         
@@ -187,10 +187,25 @@ class DR25_IO(object):
         
     def loadScr(self,clean=True):
         """
-        Load and merge the SS1 and INV sets and then combine them into
-        one dataframe
+        Load SS1
         """
         inv=self.loadInOut(datatype=self.datatypes[2],clean=clean)
+        
+        return inv
+    
+    def loadScr2(self,clean=True):
+        """
+        Load SCR2
+        """
+        inv=self.loadInOut(datatype=self.datatypes[4],clean=clean)
+        
+        return inv
+    
+    def loadScr3(self,clean=True):
+        """
+        Load SCR3
+        """
+        inv=self.loadInOut(datatype=self.datatypes[5],clean=clean)
         
         return inv
         
@@ -253,3 +268,13 @@ class DR25_IO(object):
         df.set_index('TCE_ID',inplace=True)
         
         return df
+    
+    def loadMinorFlagList(self):
+        """
+        Read the list of minor flags.
+        """
+        datafile=self.ddir + self.flagfile
+        flaglist=np.loadtxt(datafile,dtype='string',usecols=[0])
+        
+        return flaglist
+        

@@ -69,12 +69,12 @@ def writeLabels(percent, drange):
             if np.isnan(percent[r,c]):
                 text = ""
             else:
-                text = "%.1f%%" %(percent[r,c])
+                text = "%.0f%%" %(percent[r,c])
 
             cType = 'k'
             if percent[r, c] < midVal:
                 cType='w'
-            plt.text(c+.5, r+.5, text, va="center", ha="center", color=cType,fontsize=12)
+            plt.text(c+.5, r+.5, text, va="center", ha="center", color=cType,fontsize=11,fontweight='bold')
 
 def fgkwant(data):
     want=(data['logg']>=4.0) & (data['Ts']>=4000.0) & (data['Ts']<7000.0);
@@ -213,17 +213,17 @@ def plotNpcScore(ops,inv,inj,metric1,metric2,range1,range2,xlim=(0.05,1.0),score
     
     Nreal=R*Nopspc/C
     
-    plt.figure(figsize=(8,6))
+    plt.figure(figsize=(5,5),dpi=140)
     
     plt.plot(scores,Nreal,'bo-',label='Corrected Candidates',linewidth=2)
     plt.errorbar(scores,Nreal,yerr=np.sqrt(Nopspc)*R/C,color='b')
     plt.plot(scores,Nopspc,'ro--',label='Observed Candidates',linewidth=1.5)
-    plt.xlabel('Disposition Score Threshold',fontsize=13)
-    plt.ylabel('Number of Candidates ',fontsize=13)
-    plt.legend(loc='upper center')
-    plt.annotate(annotate,xy=(0.15,0.12),xycoords='figure fraction',fontsize=13)
+    plt.xlabel('Disposition Score Threshold',fontsize=14)
+    plt.ylabel('Number of Candidates ',fontsize=14)
+    plt.legend(loc='upper center',fontsize=13)
+    plt.annotate(annotate,xy=(0.15,0.14),xycoords='figure fraction',fontsize=14)
     plt.xlim(xlim)
-    
+#%%    
 ##-------------------------------------------------------
 def plot2dHistPaper(x,y,pcs,xlim,ylim,scorevalues,scorelimit=0.7,nxbins=50,nybins=50,xlabel="",ylabel="",\
                     makelog=False,clim=None,midtype='scatter',msize=14,colormap='plasma_r',logticks=True):
@@ -254,12 +254,15 @@ def plot2dHistPaper(x,y,pcs,xlim,ylim,scorevalues,scorelimit=0.7,nxbins=50,nybin
     
 
     #Plot the histograms
-    axHistx.hist(x[spcs], bins=xbins, color = 'red',histtype='step',lw=2.2,label='Score > %4.2f'%scorelimit)
-    axHistx.hist(x[pcs], bins=xbins, color = 'blue',histtype='step',lw=1.5,label='PCs')
+    axHistx.hist(x[spcs], bins=xbins, color = 'red',histtype='step',lw=2.1,label='Score > %4.2f'%scorelimit)
+    axHistx.hist(x[pcs], bins=xbins, color = 'blue',histtype='step',lw=1.3,label='PCs')
     axHistx.legend(loc=(1.1,0),fontsize=12)
+
     
-    axHisty.hist(y[pcs], bins=ybins, orientation='horizontal', color = 'blue',histtype='step',lw=2.2)
-    axHisty.hist(y[spcs], bins=ybins, orientation='horizontal', color = 'red',histtype='step',lw=1.12)    
+    axHisty.hist(y[pcs], bins=ybins, orientation='horizontal', color = 'blue',histtype='step',lw=1.3,zorder=2)
+    axHisty.hist(y[spcs], bins=ybins, orientation='horizontal', color = 'red',histtype='step',lw=2.1,zorder=1)    
+    plt.xlabel('counts')
+    plt.yticks(fontsize=9)
     
     #Set up the histogram bins   
     nbins=(nxbins+nybins)/4
@@ -284,7 +287,7 @@ def plot2dHistPaper(x,y,pcs,xlim,ylim,scorevalues,scorelimit=0.7,nxbins=50,nybin
 
     elif midtype=='scatter':
          cax=axTemperature.scatter(x[pcs],y[pcs],s=msize,c=scorevalues[pcs],edgecolors='k',\
-                                 linewidth=0.3,cmap=colormap,marker='o',label='DR25 PCs',vmin=0,vmax=1.08)
+                                 linewidth=0.03,cmap=colormap,marker='o',label='DR25 PCs',vmin=0,vmax=1.06)
          cbar=plt.colorbar(cax)
          #cbar.set_clim(0,1.0)
          cbar.set_label('Score',fontsize=14)
@@ -292,15 +295,15 @@ def plot2dHistPaper(x,y,pcs,xlim,ylim,scorevalues,scorelimit=0.7,nxbins=50,nybin
          #plt.legend(loc='best')
          
     if logticks:
-        lab=np.array([0.4,1.0,2.0,4.0,10.0,40])
+        lab=np.array([0.4,1.0,2.0,3.0,10.0,30])
         locat=np.log10(lab)
-        plt.yticks(locat,['{:.0f}'.format(l) for l in lab])
-        lab=np.array([0.4,1,4,10,40,100,400])
+        plt.yticks(locat,['{:.1f}'.format(l) for l in lab])
+        lab=np.array([0.4,1,3,10,30,100,300])
         locat=np.log10(lab)
         
         #plt.xticks(locat,lab.astype(str)) 
         axTemperature.set_xticks(locat)
-        axTemperature.set_xticklabels(['{:.0f}'.format(l) for l in lab])
+        axTemperature.set_xticklabels(['{:.1f}'.format(l) for l in lab])
         #pdb.set_trace()
 
     #Set up the plot limits
@@ -314,7 +317,7 @@ def plot2dHistPaper(x,y,pcs,xlim,ylim,scorevalues,scorelimit=0.7,nxbins=50,nybin
     #Cool trick that changes the number of tickmarks for the histogram axes
     axHisty.xaxis.set_major_locator(MaxNLocator(4))
     axHistx.yaxis.set_major_locator(MaxNLocator(4))
-    plt.show()
+    #plt.show()
     
     return axHisty,axHistx,axTemperature
 
@@ -567,6 +570,9 @@ def HZplot2(koi, scut=0.5,pradcut=1.8, mfactor=15, addConf=False, \
           'koi_steff_err2','koi_insol','koi_insol_err1','koi_insol_err2','koi_max_mult_ev','koi_slogg']
     hzframe=koi[pcs & want & (wantlow | wantup | wantin) &smallerrors][pars]
     
+    #Add in the one KOI that gets added after the stellar table erratum
+    hzframe=hzframe.append(koi[koi.index=='012885212-02'])
+    
     #Add in those three Confirmed ones we are missing.
     if addConf:
         missing=["009002278-04","008845205-01", "008142787-01","010604335-02","005640085-02"]  #[62f,283c,159c]etc
@@ -599,7 +605,7 @@ def HZplot2(koi, scut=0.5,pradcut=1.8, mfactor=15, addConf=False, \
     #Plot a circle with gradient giving the score.    
     plt.scatter(Srad,tstar,s=(rp*mfactor)**2,marker='o',c=sc,cmap=mycolormap,linewidth=0.2,vmin=scut-.15,vmax=1,zorder=2)
     cb=plt.colorbar()
-    cb.set_label("Disposition Score")
+    cb.set_label("Disposition Score",fontsize=13)
     cb.set_ticks([1.0,0.9,0.8,0.7,0.6,0.5,0.4])
     new = (kepnum>7621.01) | (kepnum == 238.03)
     #Put a ring around the confirmed ones.
@@ -612,7 +618,7 @@ def HZplot2(koi, scut=0.5,pradcut=1.8, mfactor=15, addConf=False, \
     plt.xlabel('Insolation Flux ($S_{\oplus}$)', fontsize=12)
     plt.ylabel('Stellar Effective Temperature (K)', fontsize=12)
     
-    plt.legend(handles=[small,big,ring],scatterpoints=1,framealpha=0.8,loc='upper right',fontsize=14)
+    plt.legend(handles=[small,big,ring],scatterpoints=1,framealpha=0.8,loc='upper right',fontsize=13)
     
     #Draw a HZ across the plot.
     teff=np.linspace(2000,7000,50)

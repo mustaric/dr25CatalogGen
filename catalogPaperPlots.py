@@ -401,7 +401,7 @@ plt.legend(loc='best')
 plt.savefig('%s/pradius-histogram2.png' % outdir)
 
 #%%
-#Plot the supplemental vs MCMC planet radii 
+#Plot the supplemental DV (D.2 product) vs MCMC (KOI Table) planet radii 
 
 plt.figure(8)
 plt.clf()
@@ -416,7 +416,7 @@ plt.xlabel('MCMC Planet Radius ($\oplus$)',fontsize=15)
 plt.ylabel('DV SUPP Planet Radius ($\oplus$)',fontsize=15)
 plt.legend(fontsize=14,numpoints=1,loc='best')
 
-#plt.savefig('%s/fig-comparePradius-mcmcSup.png' % outdir)
+plt.savefig('%s/fig-comparePradius-mcmcSup.png' % outdir)
 
 #%%
 #Plot histograms for different MES regions.

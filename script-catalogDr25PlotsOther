@@ -1,0 +1,149 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Sep 15 15:18:05 2017
+
+@author: sthomp
+Other plots for the DR25 paper that use more than just the public data set.
+
+
+"""
+
+import publicIO as io
+import pandas as p
+import numpy as np
+import plotRobovetter as prv
+import createRVPerfMetrics as crpm
+import matplotlib.pyplot as plt
+import createRVPerfMetricsPlots as pmp
+import publicPaperPlots as ppp
+
+#dr25=io.DR25_IO(ddir="/Users/sthompson/kepler/DR25/public0512/KeplerPublicProducts/")
+#For my linux box.
+#dr25=io.DR25_IO(ddir="/home/smullall/Kepler/RoboVetter/DR25/stats/Versions/FinalAnalysis/publicData/")
+
+dr25=io.DR25_IO(ddir="/Users/sthomp/Kepler/DR25/publicData0810/")
+
+
+koi=dr25.loadKOITable()
+ops=dr25.loadOps()
+inv=dr25.loadInv()
+scr=dr25.loadScr()
+fas=dr25.loadBothFA()
+inj=dr25.loadInj()
+
+ops['mes']=ops.MES
+fas['mes']=fas.MES
+inj['mes']=inj.MES
+
+outdir='/Users/sthomp/Kepler/DR25/workingPaperPlots/'
+
+
+#%%
+#I want to plot the fraction of certain types of fails for large Period bins
+#Just the fraction of false positives for OPS.
+#For this I need the binary file that says why things fail.
+ss1file='/Users/sthomp/Kepler/Dr25/publicData0810/other/IndividualFlagsSS1-r62353.csv'
+opsfile='/Users/sthomp/Kepler/Dr25/publicData0810/other/IndividualFlagsOPS-r62353.csv'
+invfile='/Users/sthomp/Kepler/Dr25/publicData0810/other/IndividualFlagsINV-r62353.csv'
+
+ss1rf=p.read_csv(ss1file,comment='#',index_col='tce')
+invrf=p.read_csv(invfile,comment='#',index_col='tce')
+opsrf=p.read_csv(opsfile,comment='#',index_col='tce')
+#%%
+#Probably a good idea to group up these metrics into one figure.
+#Then it is a nice concise plot for the paper.
+#metric='g_LPP_HIGH'
+#metric='g_MARSHALL'
+#metric='g_RUBBLE'
+metric='g_ITRANS_ALL'
+#metric='g_SKYE'
+#metric='g_SIG_PRI_OVER_FRED'
+
+metrics=['g_LPP_HIGH','g_ITRANS_ALL','g_SKYE','g_SIG_PRI_OVER_FRED']
+names=['LPP','INDIVID.\nTRANS','SKYE','MS$_1$']
+
+
+outname= outdir + 'fig-fractionFailsByMetric.png'
+outname=outdir +'f6-top.pdf'
+plt.figure(figsize=[8.5,5.5])
+for i,m in enumerate(metrics):
+    metric=metrics[i]
+    name=names[i]    
+    
+    fps=ops.NT==1
+    opslist=ops[fps].index
+    opsfps=ops[fps]
+    metricfail=opsrf.loc[opslist][metric]==1
+    
+    opsfpsN,opsfpsB=np.histogram(np.log10(opsfps.period),bins=40)
+    opsmetN,opsfpsB=np.histogram(np.log10(opsfps[metricfail].period),bins=opsfpsB)
+    
+    ss1list=scr.index
+    metricfail=ss1rf.loc[ss1list][metric]==1
+    ss1fpsN,ss1fpsB=np.histogram(np.log10(scr.period),bins=opsfpsB)
+    ss1metN,ss1fpsB=np.histogram(np.log10(scr[metricfail].period),bins=ss1fpsB)
+    
+    invlist=inv.index
+    metricfail=invrf.loc[invlist][metric]==1
+    invfpsN,invfpsB=np.histogram(np.log10(inv.period),bins=opsfpsB)
+    invmetN,invfpsB=np.histogram(np.log10(inv[metricfail].period),bins=invfpsB)
+    
+    plt.subplot(2,2,i+1)
+    plt.plot(opsfpsB[:-1],opsmetN.astype(float)/opsfpsN,'-k',label='OPS NT',lw=2)
+    plt.plot(ss1fpsB[:-1],ss1metN.astype(float)/ss1fpsN,'--b',label='SCR',lw=1.8)
+    plt.plot(ss1fpsB[:-1],invmetN.astype(float)/invfpsN,':r',label='INV',lw=1.8)
+    lab=np.array([0.5,1.0,3.0,10.0,30,100.0, 372.0])
+    locat=np.log10(lab)
+    plt.xticks(locat,lab,fontsize=13)
+    plt.legend(loc='best',fontsize=11)
+    plt.xlabel('log$_{10}$(Period (d))',fontsize=13)
+    plt.ylabel('Fraction FPs Fail Metric',fontsize=13)
+    plt.ylim(0,1)
+    plt.annotate(name,(1.4,0.4),xycoords="data",fontsize=14)
+    plt.tight_layout()
+
+plt.savefig(outname,bbox_inches='tight',dpi=100)
+
+#%%
+#Same as above but for MES
+outname=outdir + 'fig-fractionFailsByMetricMes.png'
+outname=outdir + 'f6-bottom.pdf'
+
+#plt.figure(figsize=[12.75,8.25])
+plt.figure(figsize=[8.5,5.5])
+for i,m in enumerate(metrics):
+    metric=metrics[i]
+    name=names[i]    
+    
+    fps=ops.NT==1
+    opslist=ops[fps].index
+    opsfps=ops[fps]
+    metricfail=opsrf.loc[opslist][metric]==1
+    mesbins=np.linspace(7,40,num=40)
+    opsfpsN,opsfpsB=np.histogram(opsfps.mes,bins=mesbins)
+    opsmetN,opsfpsB=np.histogram(opsfps[metricfail].mes,bins=opsfpsB)
+    
+    ss1list=scr.index
+    metricfail=ss1rf.loc[ss1list][metric]==1
+    ss1fpsN,ss1fpsB=np.histogram(scr.mes,bins=opsfpsB)
+    ss1metN,ss1fpsB=np.histogram(scr[metricfail].mes,bins=ss1fpsB)
+    
+    invlist=inv.index
+    metricfail=invrf.loc[invlist][metric]==1
+    invfpsN,invfpsB=np.histogram(inv.mes,bins=opsfpsB)
+    invmetN,invfpsB=np.histogram(inv[metricfail].mes,bins=invfpsB)
+    
+    plt.subplot(2,2,i+1)
+    plt.plot(opsfpsB[:-1],opsmetN.astype(float)/opsfpsN,'-k',label='OPS NT',lw=2)
+    plt.plot(ss1fpsB[:-1],ss1metN.astype(float)/ss1fpsN,'--b',label='SCR',lw=1.5)
+    plt.plot(ss1fpsB[:-1],invmetN.astype(float)/invfpsN,':r',label='INV',lw=1.5)
+    plt.legend(loc='best',fontsize=11)
+    plt.xlabel('MES',fontsize=13)
+    plt.ylabel('Fraction FPs Fail Metric',fontsize=13)
+    plt.ylim(0,1)
+    plt.xlim(7,30)
+    plt.annotate(name,(20,.01),xycoords="data",fontsize=14)
+    plt.tight_layout()
+
+plt.savefig(outname,dpi=120,bbox_inches='tight')

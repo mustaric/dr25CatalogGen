@@ -1098,33 +1098,35 @@ def plotRelCompScore(ops,inv,inj,metric1,metric2,range1,range2,scores=np.arange(
         #R[i],E[i]=pmp.estimateReliability(inv[invbox],ops[opsbox],s=(scorev,fpscore)) - use this if you want a fixed fpscore
         R[i],E[i]=pmp.estimateReliability(inv[invbox],ops[opsbox],s=(scorev,scorev))
     
-    fig1=plt.figure(figsize=(8,5))
+    fig1=plt.figure(figsize=(5,5.4),dpi=150)
     ax1=fig1.add_subplot(111)
     line1=ax1.plot(C,R,'ro-',label='Reliability')
     
     plt.ylim(Rlim)
     ax1.invert_xaxis()
     
-    plt.ylabel('Reliability',fontsize=14)
-    plt.xlabel('Completeness',fontsize=14)
+    plt.ylabel('Reliability',fontsize=16)
+    plt.yticks(fontsize=14)
+    plt.xlabel('Completeness',fontsize=16)
     #atitle='Reliability vs. Completeness adjusting Score\n box %s fpscore %3.1f ' % (str(box),fpScoreLimit)
     #plt.title(atitle)
     for i in np.arange(0,len(scores),2):
         st=scores[i].astype('str')
-        plt.annotate(st,xy=(C[i]-.005,R[i]-.032),fontsize=14)
+        plt.annotate(st,xy=(C[i]-.005,R[i]-.032),fontsize=16)
     
     ax2=fig1.add_subplot(111,sharex=ax1, frameon=False)
     line2=ax2.plot(C,E,'bs--',ms=4, lw=2,label='Effectiveness')
     ax2.yaxis.set_label_position("right")
     ax2.yaxis.tick_right()
-    plt.ylabel("Effectiveness",fontsize=14)
+    plt.ylabel("Effectiveness",fontsize=16)
+    plt.yticks(fontsize=12)
     plt.xlim(Clim)
     plt.ylim([.982,1.0009])
     import matplotlib.lines as mlines
     red_line = mlines.Line2D([],[],color='red', label='Reliability',lw=2)
     blue_line = mlines.Line2D([],[],color='blue',label='Effectiveness',lw=2)
     #bline=plt.plot([-1],[-1],'bx-')
-    plt.legend(handles=[red_line,blue_line],loc="lower right",fontsize=12)
+    plt.legend(handles=[red_line,blue_line],loc="lower right",fontsize=14)
     #plt.legend([line1, line2], ["Reliability","Effectiveness"],loc="best",fontsize=12,framealpha=0.75,numpoints=1)
     
     print C,R

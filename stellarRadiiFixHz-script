@@ -1,0 +1,63 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Sep  5 15:16:48 2017
+
+@author: sthomp
+See How the new stellar radii impact the cuts for HZ
+
+"""
+
+import publicIO as io
+import pandas as p
+import numpy as np
+import plotRobovetter as prv
+import createRVPerfMetrics as crpm
+import matplotlib.pyplot as plt
+import createRVPerfMetricsPlots as pmp
+import publicPaperPlots as ppp
+
+#dr25=io.DR25_IO(ddir="/Users/sthompson/kepler/DR25/public0512/KeplerPublicProducts/")
+#For my linux box.
+#dr25=io.DR25_IO(ddir="/home/smullall/Kepler/RoboVetter/DR25/stats/Versions/FinalAnalysis/publicData/")
+
+dr25=io.DR25_IO(ddir="/Users/sthomp/Kepler/DR25/publicData0810/")
+
+
+koi=dr25.loadKOITable()
+ops=dr25.loadOps()
+inv=dr25.loadInv()
+scr1=dr25.loadScr()
+scr2=dr25.loadScr2()
+scr3=dr25.loadScr3()
+fas=dr25.loadBothFA()
+inj=dr25.loadInj()
+
+ops['mes']=ops.MES
+fas['mes']=fas.MES
+inj['mes']=inj.MES
+scr2['mes']=scr2.MES
+scr3['mes']=scr3.MES
+
+#%%
+#Read in the new stellar radii and update planet and stellar radii
+#in the KOI table.
+koi=dr25.loadKOITable()
+newstellar='/Users/sthomp/Kepler/DR25/stellarFix/DR25_newR_KOI.txt'
+newstar=p.read_csv(newstellar,index_col='kepid',delim_whitespace=True,usecols=[0,1,2],names=['kepid','newradius','ratio'])
+starkid=newstar.index
+for tce in koi.index:
+    kid=koi.loc[tce].kepid
+    if  kid in starkid:
+        oldprad=koi.loc[tce].koi_prad
+        newprad=koi.loc[tce].koi_prad*newstar.loc[kid].ratio
+        koi.set_value(tce,'koi_prad',newprad)
+        #print kid,newstar.loc[kid].ratio
+        if (oldprad>1.80) & (newprad<1.8):
+            print koi.loc[tce].kepoi_name
+#%%
+#Plot the Habitable zone for scores > 0.5
+#Plot the HZ candidates
+#koi=dr25.loadKOITable()
+plt.figure(figsize=(8.5,11))
+hzframe=ppp.HZplot2(koi, scut=0.5,pradcut=1.8, mfactor=18, addConf=False, ylimits=(3000,6600), xlimits=(2.5,0.0),mycolormap="GnBu")
